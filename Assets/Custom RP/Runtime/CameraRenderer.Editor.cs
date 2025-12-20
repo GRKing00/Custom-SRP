@@ -15,8 +15,6 @@ partial class CameraRenderer
     
     partial void DrawGizmos();
 
-
-
 #if UNITY_EDITOR
     //不支持着色器的标签
     private static ShaderTagId[] legacyShaderTagIds =
@@ -49,7 +47,6 @@ partial class CameraRenderer
             ScriptableRenderContext.EmitWorldGeometryForSceneView(camera);//确保能绘制UI
         }
     }
-
 
     //用默认的错误材质绘制不支持的着色器
     partial void DrawUnsupportedShaders()

@@ -24,7 +24,8 @@ public partial class CameraRenderer
     static ShaderTagId unlitShaderTagId = new ShaderTagId("SRPDefaultUnlit");
     
     //渲染操作
-    public void Render(ScriptableRenderContext context, Camera camera)
+    public void Render(ScriptableRenderContext context, Camera camera,
+        bool useDynamicBatching, bool useGPUInstancing)
     {
         this.context = context;
         this.camera = camera;
@@ -37,7 +38,7 @@ public partial class CameraRenderer
         }
         
         Setup();
-        DrawVisibleGeometry();
+        DrawVisibleGeometry(useDynamicBatching,useGPUInstancing);
         DrawUnsupportedShaders();
         DrawGizmos();
         Submit();
@@ -71,14 +72,20 @@ public partial class CameraRenderer
     }
     
     //绘制可见几何
-    void DrawVisibleGeometry()
+    void DrawVisibleGeometry(bool useDynamicBatching, bool useGPUInstancing)
     {
         //不透明物体
         var sortingSettings = new SortingSettings(camera)
         {
             criteria = SortingCriteria.CommonOpaque //不透明物体从前往后的顺序渲染
         };
-        var drawingSettings = new DrawingSettings(unlitShaderTagId, sortingSettings);//渲染设置，可执行的着色器，和排序设置
+        //渲染设置，可执行的着色器，和排序设置
+        var drawingSettings = new DrawingSettings(unlitShaderTagId, sortingSettings)
+        {
+            //是否开启动态批处理和实例化
+            enableDynamicBatching = useDynamicBatching,
+            enableInstancing = useGPUInstancing,
+        };
         var filteringSettings = new FilteringSettings(RenderQueueRange.opaque);//过滤设置，只渲染不透明物体
         
         context.DrawRenderers(cullingResults, ref drawingSettings, ref filteringSettings);//渲染不透明物体
