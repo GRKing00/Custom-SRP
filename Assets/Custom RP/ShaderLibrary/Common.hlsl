@@ -2,6 +2,7 @@
 #define CUSTOM_COMMON_INCLUDED
 
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl" //包含real类型的定义
+#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/CommonMaterial.hlsl" //包含感知粗糙度的转换函数
 #include "UnityInput.hlsl" //unity的输入，包含一些矩阵等数据
 
 //SpaceTransforms里使用宏定义进行运行，这里给宏定义相应的值
@@ -16,5 +17,12 @@
 
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl" //支持实例化
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/SpaceTransforms.hlsl" //包含空间变换等函数
+
+
+float Square(float v)
+{
+    return v*v;
+}
+
 
 #endif

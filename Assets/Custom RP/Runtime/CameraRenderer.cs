@@ -21,7 +21,11 @@ public partial class CameraRenderer
     CullingResults cullingResults;
     
     //可执行着色器的标签
-    static ShaderTagId unlitShaderTagId = new ShaderTagId("SRPDefaultUnlit");
+    static ShaderTagId 
+        unlitShaderTagId = new ShaderTagId("SRPDefaultUnlit"),
+        litShaderTagId = new ShaderTagId("CustomLit");
+    
+    Lighting lighting = new Lighting();
     
     //渲染操作
     public void Render(ScriptableRenderContext context, Camera camera,
@@ -38,6 +42,7 @@ public partial class CameraRenderer
         }
         
         Setup();
+        lighting.Setup(context,cullingResults);
         DrawVisibleGeometry(useDynamicBatching,useGPUInstancing);
         DrawUnsupportedShaders();
         DrawGizmos();
@@ -86,6 +91,7 @@ public partial class CameraRenderer
             enableDynamicBatching = useDynamicBatching,
             enableInstancing = useGPUInstancing,
         };
+        drawingSettings.SetShaderPassName(1, litShaderTagId);
         var filteringSettings = new FilteringSettings(RenderQueueRange.opaque);//过滤设置，只渲染不透明物体
         
         context.DrawRenderers(cullingResults, ref drawingSettings, ref filteringSettings);//渲染不透明物体
