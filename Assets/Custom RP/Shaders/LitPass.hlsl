@@ -3,6 +3,7 @@
 
 #include "../ShaderLibrary/Common.hlsl" //包含一些常用操作，如矩阵变换等
 #include "../ShaderLibrary/Surface.hlsl" //包含材质的表面属性
+#include "../ShaderLibrary/Shadows.hlsl"
 #include "../ShaderLibrary/Light.hlsl" //包含灯光数据
 #include "../ShaderLibrary/BRDF.hlsl" //包含BRDF数据和计算函数
 #include "../ShaderLibrary/Lighting.hlsl" //包含光照的计算
@@ -59,12 +60,15 @@ float4 LitPassFragment(Varyings input) : SV_TARGET
         clip(base.a - UNITY_ACCESS_INSTANCED_PROP(UnityPerMaterial, _Cutoff));
     #endif
     Surface surface;
+    surface.position = input.positionWS;
     surface.normal = normalize(input.normalWS);
     surface.viewDirection = normalize(_WorldSpaceCameraPos - input.positionWS);
+    surface.depth = -TransformWorldToView(input.positionWS).z;
     surface.color = base.rgb;
     surface.alpha = base.a;
     surface.metallic = UNITY_ACCESS_INSTANCED_PROP(UnityPerMaterial, _Metallic);
     surface.smoothness = UNITY_ACCESS_INSTANCED_PROP(UnityPerMaterial, _Smoothness);
+    surface.dither = InterleavedGradientNoise(input.positionCS.xy,0);//获取抖动值，是一个随机噪声
     #if defined(_PREMULTIPLY_ALPHA)
         BRDF brdf = GetBRDF(surface, true);//获取brdf数据
     #else

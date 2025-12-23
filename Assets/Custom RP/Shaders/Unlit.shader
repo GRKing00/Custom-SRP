@@ -26,6 +26,7 @@ Shader "Custom RP/Unlit"
              #include "UnlitPass.hlsl"
              ENDHLSL
         }
+
     }
         CustomEditor "CustomShaderGUI"
 }

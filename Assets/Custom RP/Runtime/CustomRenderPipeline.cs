@@ -10,10 +10,13 @@ public class CustomRenderPipeline : RenderPipeline
     
     bool useDynamicBatching, useGPUInstancing;
 
+    ShadowSettings shadowSettings;
+    
     public CustomRenderPipeline(
-        bool useDynamicBatching, bool useGPUInstancing, bool useSRPBatcher
+        bool useDynamicBatching, bool useGPUInstancing, bool useSRPBatcher, ShadowSettings shadowSettings
         )
     {
+        this.shadowSettings = shadowSettings;
         //批处理相关设置
         this.useDynamicBatching = useDynamicBatching;
         this.useGPUInstancing = useGPUInstancing;
@@ -32,7 +35,7 @@ public class CustomRenderPipeline : RenderPipeline
         //每个相机单独渲染
         for (int i = 0; i < cameras.Count; ++i)
         {
-            renderer.Render(context, cameras[i],useDynamicBatching,useGPUInstancing);
+            renderer.Render(context, cameras[i],useDynamicBatching,useGPUInstancing,shadowSettings);
         }
     }
 

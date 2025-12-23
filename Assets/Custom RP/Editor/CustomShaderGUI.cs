@@ -10,7 +10,25 @@ public class CustomShaderGUI : ShaderGUI
     MaterialEditor editor;
     Object[] materials; //正在被编辑的材质,可以一次选择多个材质
     MaterialProperty[] properties;
-    
+
+    enum ShadowMode
+    {
+        On,Clip,Dither,Off
+    }
+
+    ShadowMode Shadows
+    {
+        set
+        {
+            
+            if (SetProperty("_Shadows", (float)value))
+            {
+                //设置阴影模式的关键字
+                SetKeyword("_SHADOWS_CLIP",value == ShadowMode.Clip);
+                SetKeyword("_SHADOWS_DITHER",value == ShadowMode.Dither);
+            }
+        }
+    }
     
     //定义属性设置
     bool Clipping
@@ -56,6 +74,7 @@ public class CustomShaderGUI : ShaderGUI
         MaterialEditor materialEditor, MaterialProperty[] properties
         )
     {
+        EditorGUI.BeginChangeCheck();
         base.OnGUI(materialEditor, properties);
         editor = materialEditor;
         materials = materialEditor.targets;
@@ -70,6 +89,11 @@ public class CustomShaderGUI : ShaderGUI
             ClipPreset();
             FadePreset();
             TransparentPreset();
+        }
+        //如果检测到材质面板的改变，则尝试设置开启阴影投射pass
+        if (EditorGUI.EndChangeCheck())
+        {
+            SetShadowCasterPass();
         }
 
     }
@@ -187,6 +211,21 @@ public class CustomShaderGUI : ShaderGUI
             RenderQueue = RenderQueue.Transparent;
         }
 
+    }
+
+    void SetShadowCasterPass()
+    {
+        MaterialProperty shadows = FindProperty("_Shadows",properties,false);
+        if (shadows == null || shadows.hasMixedValue)
+        {
+            return;
+        }
+        //有阴影时才启用ShadowCaster Pass
+        bool enabled = shadows.floatValue < (float) ShadowMode.Off;
+        foreach (Material m in materials)
+        {
+            m.SetShaderPassEnabled("ShadowCaster", enabled);
+        }
     }
     
 
