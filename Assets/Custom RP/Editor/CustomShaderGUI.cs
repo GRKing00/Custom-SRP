@@ -80,6 +80,8 @@ public class CustomShaderGUI : ShaderGUI
         materials = materialEditor.targets;
         this.properties = properties;
         
+        BakedEmission();
+        
         //折叠或展开预设
         EditorGUILayout.Space();
         showPresets = EditorGUILayout.Foldout(showPresets, "Presets", true);
@@ -94,8 +96,43 @@ public class CustomShaderGUI : ShaderGUI
         if (EditorGUI.EndChangeCheck())
         {
             SetShadowCasterPass();
+            CopyLightMappingProperties();
         }
 
+    }
+
+    //使半透明和裁剪物体也能正确烘焙间接光照
+    void CopyLightMappingProperties()
+    {
+        MaterialProperty mainTex = FindProperty("_MainTex",properties,false);
+        MaterialProperty baseMap = FindProperty("_BaseMap",properties,false);
+        //将baseMap赋值给mainTex
+        if (mainTex != null && baseMap != null)
+        {
+            mainTex.textureValue = baseMap.textureValue;
+            mainTex.textureScaleAndOffset = baseMap.textureScaleAndOffset;
+        }
+        //将basecolor赋值给color
+        MaterialProperty color = FindProperty("_Color",properties,false);
+        MaterialProperty baseColor = FindProperty("_BaseColor",properties,false);
+        if (color != null&&baseColor != null)
+        {
+            color.colorValue = baseColor.colorValue;
+        }
+    }
+
+    void BakedEmission()
+    {
+        EditorGUI.BeginChangeCheck();
+        //会显示出一个名为 “Global Illumination”（全局光照）的下拉菜单，默认值为 “None”,Bake时烘焙自发光
+        editor.LightmapEmissionProperty();
+        if (EditorGUI.EndChangeCheck())
+        {
+            foreach (Material m in editor.targets)
+            {
+                m.globalIlluminationFlags &= ~MaterialGlobalIlluminationFlags.EmissiveIsBlack;
+            }
+        }
     }
     
     bool HasProperty(string name) =>

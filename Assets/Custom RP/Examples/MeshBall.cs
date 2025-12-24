@@ -15,6 +15,10 @@ public class MeshBall : MonoBehaviour
     
     [SerializeField]
     Material material = default;
+
+    [SerializeField]
+    private LightProbeProxyVolume lightProbeVolume = null;
+    
     
     //每个实例的数据
     Matrix4x4[] matrices = new Matrix4x4[1023];
@@ -58,8 +62,29 @@ public class MeshBall : MonoBehaviour
             block.SetVectorArray(baseColorId, baseColors);
             block.SetFloatArray(metallicId, metallic);
             block.SetFloatArray(smoothnessId, smoothness);
+            
+            //  如果没有使用光照探针体积，则需要计算探针数据
+            if (!lightProbeVolume)
+            {
+                //获取网格位置
+                var positions = new Vector3[1023];
+                for (int i = 0; i < matrices.Length; i++)
+                {
+                    positions[i] = matrices[i].GetColumn(3);
+                }
+                //二阶SH
+                var lightProbes = new SphericalHarmonicsL2[1023];
+                //计算获取当前位置的探针数据
+                LightProbes.CalculateInterpolatedLightAndOcclusionProbes(positions, lightProbes,null);
+                //拷贝SH数据
+                block.CopySHCoefficientArraysFrom(lightProbes);
+            }
+
         }
         //绘制实例
-        Graphics.DrawMeshInstanced(mesh, 0, material, matrices, 1023, block);
+        Graphics.DrawMeshInstanced(mesh, 0, material, matrices, 1023, block,
+            ShadowCastingMode.On,true,0,null,
+            lightProbeVolume?LightProbeUsage.UseProxyVolume : LightProbeUsage.CustomProvided,
+            lightProbeVolume);
     }
 }
