@@ -71,7 +71,7 @@ public class Lighting
         buffer.SetGlobalVectorArray(dirLightShadowDataId, dirLightShadowData);
     }
 
-    //设置方向光数据
+    //设置方向光数据,这里会预存方向光阴影
     void SetupDirectionalLight(int index, ref VisibleLight visibleLight)
     {
         dirLightColors[index] = visibleLight.finalColor;

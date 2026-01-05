@@ -733,7 +733,7 @@ LightProbeProxyVolume:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 431742770}
-  m_Enabled: 0
+  m_Enabled: 1
   m_BoundingBoxMode: 2
   m_ResolutionX: 2
   m_ResolutionY: 2

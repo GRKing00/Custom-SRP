@@ -26,11 +26,11 @@ public class Shadows
     struct ShadowedDirectionalLight
     {
         public int visibleLightIndex;//可见光索引
-        public float slopeScaleBias;
+        public float slopeScaleBias;//斜率偏移
         public float nearPlaneOffset;//光方向近平面偏移，防止渲染阴影时物体形变过大带来的阴影变形
     }
     
-    //带阴影的方向光数组
+    //带阴影的方向光数组，用于渲染阴影
     ShadowedDirectionalLight[] ShadowedDirectionalLights = 
             new ShadowedDirectionalLight[maxShadowedDirectionalLightCount];
     
@@ -51,6 +51,15 @@ public class Shadows
         "_CASCADE_BLEND_SOFT",
         "_CASCADE_BLEND_DITHER"
     };
+
+    //阴影遮罩关键字
+    private static string[] shadowMaskKeywords =
+    {
+        "_SHADOW_MASK_ALWAYS",
+        "_SHADOW_MASK_DISTANCE"
+    };
+    
+    bool useShadowMask;
     
     //方向阴影图集和矩阵Id
     private static int
@@ -81,6 +90,7 @@ public class Shadows
         this.cullingResults = cullingResults;
         this.settings = settings;
         ShadowedDirectionalLightCount = 0;
+        useShadowMask = false;
     }
     
     void ExecuteBuffer()
@@ -89,27 +99,43 @@ public class Shadows
         buffer.Clear();
     }
 
-    //预存方向光阴影
-    public Vector3 ReserveDirectionalShadows(Light light, int visibleLightIndex)
+    //预存方向光阴影数据
+    public Vector4 ReserveDirectionalShadows(Light light, int visibleLightIndex)
     {
         //不超过数量限制，渲染阴影且阴影强度大于0，阴影投射包围盒有效
         if (ShadowedDirectionalLightCount < maxShadowedDirectionalLightCount &&
-            light.shadows != LightShadows.None && light.shadowStrength > 0f &&
-            cullingResults.GetShadowCasterBounds(visibleLightIndex, out Bounds b))
+            light.shadows != LightShadows.None && light.shadowStrength > 0f
+           )
         {
+            float maskChannel = -1;
+            //判断是否使用shadow Mask
+            LightBakingOutput lightBaking = light.bakingOutput;
+            if (
+                lightBaking.lightmapBakeType == LightmapBakeType.Mixed &&
+                lightBaking.mixedLightingMode == MixedLightingMode.Shadowmask
+            )
+            {
+                useShadowMask = true;
+                maskChannel = lightBaking.occlusionMaskChannel;//shadow mask使用的通道
+            }
+            //包围盒内没有阴影投射物
+            if (!cullingResults.GetShadowCasterBounds(visibleLightIndex, out Bounds b))
+            {
+                return new Vector4(-light.shadowStrength, 0f, 0f,maskChannel);
+            }
             ShadowedDirectionalLights[ShadowedDirectionalLightCount] =
                 new ShadowedDirectionalLight { 
                     visibleLightIndex = visibleLightIndex, //第几个方向光会带有阴影
                     slopeScaleBias = light.shadowBias,
                     nearPlaneOffset = light.shadowNearPlane
                 };
-            return new Vector3(
+            return new Vector4(
                 //返回阴影强度和带阴影方向光索引，这些数据会上传到GPU
                 light.shadowStrength,settings.directional.cascadeCount * ShadowedDirectionalLightCount++,
-                light.shadowNormalBias
+                light.shadowNormalBias, maskChannel
             );
         }
-        return Vector3.zero;
+        return new Vector4(0f,0f,0f,-1f);
     }
 
     //渲染阴影
@@ -126,6 +152,12 @@ public class Shadows
                 dirShadowAtlasId,1,1,
                 32,FilterMode.Bilinear,RenderTextureFormat.Shadowmap);
         }
+        buffer.BeginSample(bufferName);
+        SetKeywords(shadowMaskKeywords,useShadowMask?
+            QualitySettings.shadowmaskMode == ShadowmaskMode.Shadowmask? 0 : 1 :
+            -1);
+        buffer.EndSample(bufferName);
+        ExecuteBuffer();
     }
 
     //渲染方向光阴影
@@ -226,6 +258,7 @@ public class Shadows
         var shadowSettings = 
             new ShadowDrawingSettings(cullingResults,light.visibleLightIndex,BatchCullingProjectionType.Orthographic);
         int cascadeCount = settings.directional.cascadeCount;
+        //光源的阴影偏移多少块
         int tileOffset = index * cascadeCount;
         Vector3 ratios = settings.directional.CascadeRatios;
         //计算级联剔除因子
@@ -245,7 +278,8 @@ public class Shadows
             {
                 SetCascadeData(i,splitData.cullingSphere,tileSize);
             }
-            int tileIndex = tileOffset + i;//计算块索引
+            //当前级联所在块
+            int tileIndex = tileOffset + i;
             //设置视口，并求取世界空间到阴影图集纹理空间的矩阵
             dirShadowMatrices[tileIndex] = ConvertToAtlasMatrix( 
                 projectionMatrix * viewMatrix,SetTileViewport(tileIndex, split, tileSize),split

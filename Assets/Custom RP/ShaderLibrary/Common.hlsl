@@ -15,6 +15,11 @@
 #define UNITY_PREV_MATRIX_I_M unity_prev_MatrixIM 
 #define UNITY_MATRIX_P glstate_matrix_projection
 
+#if defined(_SHADOW_MASK_ALWAYS) || defined(_SHADOW_MASK_DISTANCE)
+    //定义宏，使遮挡探针能被实例化处理
+    #define SHADOWS_SHADOWMASK
+#endif
+
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl" //支持实例化
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/SpaceTransforms.hlsl" //包含空间变换等函数
 

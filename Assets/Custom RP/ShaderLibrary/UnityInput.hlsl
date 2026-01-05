@@ -10,6 +10,7 @@ CBUFFER_START(UnityPerDraw)
     float4 unity_LODFade;
     real4 unity_WorldTransformParams;
 
+    float4 unity_ProbesOcclusion;
     //CPU端上传的光照贴图uv的缩放和偏移
     float4 unity_LightmapST;
     float4 unity_DynamicLightmapST;

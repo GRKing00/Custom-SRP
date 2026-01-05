@@ -74,10 +74,12 @@ public class MeshBall : MonoBehaviour
                 }
                 //二阶SH
                 var lightProbes = new SphericalHarmonicsL2[1023];
+                var occlusionProbes = new Vector4[1023];
                 //计算获取当前位置的探针数据
-                LightProbes.CalculateInterpolatedLightAndOcclusionProbes(positions, lightProbes,null);
+                LightProbes.CalculateInterpolatedLightAndOcclusionProbes(positions, lightProbes,occlusionProbes);
                 //拷贝SH数据
                 block.CopySHCoefficientArraysFrom(lightProbes);
+                block.CopyProbeOcclusionArrayFrom(occlusionProbes);
             }
 
         }
