@@ -3,6 +3,7 @@
 
 //包含间接光照相关的内容
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/EntityLighting.hlsl"
+#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/ImageBasedLighting.hlsl"
 
 //光照贴图
 TEXTURE2D(unity_Lightmap);
@@ -15,6 +16,10 @@ SAMPLER(samplerunity_ProbeVolumeSH);
 //ShadowMask 纹理
 TEXTURE2D(unity_ShadowMask);
 SAMPLER(samplerunity_ShadowMask);
+
+//环境纹理
+TEXTURECUBE(unity_SpecCube0);
+SAMPLER(samplerunity_SpecCube0);
 
 //使用光照贴图时定义宏数据
 #if defined(LIGHTMAP_ON)
@@ -37,6 +42,7 @@ SAMPLER(samplerunity_ShadowMask);
 struct GI
 {
     float3 diffuse;
+    float3 specular;
     ShadowMask shadowMask;
 };
 
@@ -121,11 +127,22 @@ float4 SampleBakedShadows(float2 lightMapUV, Surface surfaceWS)
     #endif
 }
 
+//采样环境纹理
+float3 SampleEnvironment(Surface surfaceWS, BRDF brdf)
+{
+    float3 uvw =reflect(-surfaceWS.viewDirection, surfaceWS.normal);
+    float mip = PerceptualRoughnessToMipmapLevel(brdf.perceptualRoughness);
+    float4 environment = SAMPLE_TEXTURECUBE_LOD(
+        unity_SpecCube0,samplerunity_SpecCube0,uvw,mip    
+    );
+    return DecodeHDREnvironment(environment,unity_SpecCube0_HDR);
+}
 
-GI GetGI(float2 lightMapUV, Surface surfaceWS)
+GI GetGI(float2 lightMapUV, Surface surfaceWS, BRDF brdf)
 {
     GI gi;
     gi.diffuse = SampleLightMap(lightMapUV) + SampleLightProbe(surfaceWS);
+    gi.specular = SampleEnvironment(surfaceWS,brdf);
     gi.shadowMask.always = false;
     gi.shadowMask.distance = false;
     gi.shadowMask.shadows = 1.0;

@@ -13,6 +13,7 @@ Shader "Custom RP/Lit"
         [KeywordEnum(On,Clip,Dither,Off)]_Shadows("Shadows",Float) =0
         _Metallic("Metallic", Range(0,1)) = 0
         _Smoothness("Smoothness", Range(0,1)) = 0.5
+        _Fresnel("Fresnel", Range(0,1)) =1
         [NoScaleOffset] _EmissionMap("Emission", 2D) = "white"{}
         [HDR] _EmissionColor("Emission",Color) = (0.0,0.0,0.0,0.0)
         [Toggle(_PREMULTIPLY_ALPHA)]_PremulAlpha("Premultiply Alpha", Float) = 0
@@ -40,6 +41,7 @@ Shader "Custom RP/Lit"
              #pragma shader_feature _CLIPPING   //裁剪
              #pragma shader_feature _RECEIVE_SHADOWS //接收阴影
              #pragma shader_feature _PREMULTIPLY_ALPHA //预乘alpha
+             #pragma multi_compile _ LOD_FADE_CROSSFADE
              #pragma multi_compile _ _DIRECTIONAL_PCF3 _DIRECTIONAL_PCF5 _DIRECTIONAL_PCF7
              #pragma multi_compile _ _CASCADE_BLEND_SOFT _CASCADE_BLEND_DITHER
              #pragma multi_compile _ _SHADOW_MASK_ALWAYS _SHADOW_MASK_DISTANCE
@@ -63,6 +65,7 @@ Shader "Custom RP/Lit"
              HLSLPROGRAM
              #pragma target 3.5
              #pragma shader_feature _ _SHADOWS_CLIP _SHADOWS_DITHER //阴影模式
+             #pragma multi_compile _ LOD_FADE_CROSSFADE
              #pragma multi_compile_instancing   //实例化
              #pragma vertex ShadowCasterPassVertex
              #pragma fragment ShadowCasterPassFragment
