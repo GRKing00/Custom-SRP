@@ -151,7 +151,7 @@ float GetCascadedShadow(
 )
 {
     //朝法线方向偏移的强度
-    float3 normalBias = surfaceWS.normal * (directional.normalBias * _CascadeData[global.cascadeIndex].y);
+    float3 normalBias = surfaceWS.interpolatedNormal * (directional.normalBias * _CascadeData[global.cascadeIndex].y);
     //纹理空间坐标
     float3 positionSTS = mul(
         _DirectionalShadowMatrices[directional.tileIndex],
@@ -162,7 +162,7 @@ float GetCascadedShadow(
     if (global.cascadeBlend <1.0)
     {
         //处于级联阴影过度区域，计算下一级的级联，插值两层级联
-        normalBias = surfaceWS.normal *
+        normalBias = surfaceWS.interpolatedNormal *
             (directional.normalBias * _CascadeData[global.cascadeIndex+1].y);
         positionSTS = mul(
             _DirectionalShadowMatrices[directional.tileIndex+1],

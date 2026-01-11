@@ -40,10 +40,11 @@ void ShadowCasterPassFragment(Varyings input)
 {
     UNITY_SETUP_INSTANCE_ID(input);
     ClipLOD(input.positionCS.xy, unity_LODFade.x);
-    float4 base = GetBase(input.baseUV);
+    InputConfig config = GetInputConfig(input.baseUV);
+    float4 base = GetBase(config);
     //使用阴影裁剪模式
     #if defined(_SHADOWS_CLIP)
-        clip(base.a - GetCutoff(input.baseUV));
+        clip(base.a - GetCutoff(config));
     #elif defined(_SHADOWS_DITHER)
         //使用阴影抖动
         float dither = InterleavedGradientNoise(input.positionCS.xy,0);
