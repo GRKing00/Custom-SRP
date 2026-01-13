@@ -9,7 +9,7 @@ public class CustomRenderPipelineAsset : RenderPipelineAsset
 {
     //在管线资产中设置是否启用批处理和实例化
     [SerializeField]
-    bool useDynamicBatching = true, useGPUInstancing = true, useSRPBatcher = true;
+    bool useDynamicBatching = true, useGPUInstancing = true, useSRPBatcher = true, useLightsPerObject = true;
     
     //阴影设置
     [SerializeField]
@@ -19,6 +19,6 @@ public class CustomRenderPipelineAsset : RenderPipelineAsset
     //创建渲染管线实例
     protected override RenderPipeline CreatePipeline()
     {
-        return new CustomRenderPipeline(useDynamicBatching, useGPUInstancing, useSRPBatcher, shadows);
+        return new CustomRenderPipeline(useDynamicBatching, useGPUInstancing, useSRPBatcher, useLightsPerObject, shadows);
     }
 }

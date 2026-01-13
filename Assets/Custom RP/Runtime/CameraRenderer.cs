@@ -29,7 +29,7 @@ public partial class CameraRenderer
     
     //渲染操作
     public void Render(ScriptableRenderContext context, Camera camera,
-        bool useDynamicBatching, bool useGPUInstancing, ShadowSettings shadowSettings)
+        bool useDynamicBatching, bool useGPUInstancing, bool useLightsPerObject,ShadowSettings shadowSettings)
     {
         this.context = context;
         this.camera = camera;
@@ -42,10 +42,10 @@ public partial class CameraRenderer
         }
         buffer.BeginSample(SampleName);
         ExecuteBuffer();
-        lighting.Setup(context,cullingResults,shadowSettings);//灯光设置和渲染阴影
+        lighting.Setup(context,cullingResults,shadowSettings,useLightsPerObject);//灯光设置和渲染阴影
         buffer.EndSample(SampleName);
         Setup();
-        DrawVisibleGeometry(useDynamicBatching,useGPUInstancing);
+        DrawVisibleGeometry(useDynamicBatching,useGPUInstancing,useLightsPerObject);
         DrawUnsupportedShaders();
         DrawGizmos();
         lighting.Cleanup();//清除阴影图集纹理
@@ -82,8 +82,10 @@ public partial class CameraRenderer
     }
     
     //绘制可见几何
-    void DrawVisibleGeometry(bool useDynamicBatching, bool useGPUInstancing)
+    void DrawVisibleGeometry(bool useDynamicBatching, bool useGPUInstancing, bool useLightsPerObject)
     {
+        PerObjectData lightPerObjectFlags =
+            useLightsPerObject ? PerObjectData.LightData | PerObjectData.LightIndices : PerObjectData.None;
         //不透明物体
         var sortingSettings = new SortingSettings(camera)
         {
@@ -101,7 +103,8 @@ public partial class CameraRenderer
                             PerObjectData.LightProbe| //传递光照贴图数据和光照探针数据
                             PerObjectData.OcclusionProbe | //遮挡探针
                             PerObjectData.LightProbeProxyVolume | //传递光照探针代理数据
-                            PerObjectData.OcclusionProbeProxyVolume //遮挡探针代理体积
+                            PerObjectData.OcclusionProbeProxyVolume |//遮挡探针代理体积
+                            lightPerObjectFlags
         };
         drawingSettings.SetShaderPassName(1, litShaderTagId);
         var filteringSettings = new FilteringSettings(RenderQueueRange.opaque);//过滤设置，只渲染不透明物体

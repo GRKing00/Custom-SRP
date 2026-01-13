@@ -43,6 +43,12 @@ struct DirectionalShadowData
     int shadowMaskChannel;
 };
 
+struct OtherShadowData
+{
+    float strength;
+    int shadowMaskChannel;
+};
+
 struct ShadowMask
 {
     bool always;
@@ -244,6 +250,27 @@ float GetDirectionalShadowAttenuation(DirectionalShadowData directional,ShadowDa
     }
 
     return shadow;
+}
+
+//获取其他光的阴影衰减
+float GetOtherShadowAttenuation(OtherShadowData other, ShadowData global, Surface surfaceWS)
+{
+    #if !defined(_RECEIVE_SHADOWS)
+        return 1.0;
+    #endif
+    
+    float shadow;
+    if (other.strength  > 0.0)
+    {
+        //现在仅返回烘焙阴影
+        shadow = GetBakedShadow(global.shadowMask, other.shadowMaskChannel, other.strength);
+    }
+    else
+    {
+        shadow = 1.0;
+    }
+    return shadow;
+    
 }
 
 #endif
