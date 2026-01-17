@@ -17,11 +17,24 @@
     #define DIRECTIONAL_FILTER_SETUP SampleShadow_ComputeSamples_Tent_7x7
 #endif
 
+#if defined(_OTHER_PCF3)
+    #define OTHER_FILTER_SAMPLES 4
+    #define OTHER_FILTER_SETUP SampleShadow_ComputeSamples_Tent_3x3
+#elif defined (_OTHER_PCF5)
+    #define OTHER_FILTER_SAMPLES 9
+    #define OTHER_FILTER_SETUP SampleShadow_ComputeSamples_Tent_5x5
+#elif defined (_OTHER_PCF7)
+    #define OTHER_FILTER_SAMPLES 16
+    #define OTHER_FILTER_SETUP SampleShadow_ComputeSamples_Tent_7x7
+#endif
+
 #define MAX_SHADOWED_DIRECTIONAL_LIGHTS_COUNT 4
+#define MAX_SHADOWED_OTHER_LIGHTS_COUNT 16
 #define MAX_CASCADE_COUNT 4
 
 //阴影图集
 TEXTURE2D_SHADOW(_DirectionalShadowAtlas);
+TEXTURE2D_SHADOW(_OtherShadowAtlas);
 #define SHADOW_SAMPLER sampler_linear_clamp_compare
 SAMPLER_CMP(SHADOW_SAMPLER);
 
@@ -31,6 +44,8 @@ CBUFFER_START(_CustomShadows)
     float4 _CascadeCullingSpheres[MAX_CASCADE_COUNT];
     float4 _CascadeData[MAX_CASCADE_COUNT];
     float4x4 _DirectionalShadowMatrices[MAX_SHADOWED_DIRECTIONAL_LIGHTS_COUNT * MAX_CASCADE_COUNT]; //世界空间到阴影图集纹理空间的矩阵
+    float4x4 _OtherShadowMatrices[MAX_SHADOWED_OTHER_LIGHTS_COUNT];
+    float4 _OtherShadowTiles[MAX_SHADOWED_OTHER_LIGHTS_COUNT];
     float4 _ShadowAtlasSize;
     float4 _ShadowDistanceFade;
 CBUFFER_END
@@ -46,7 +61,13 @@ struct DirectionalShadowData
 struct OtherShadowData
 {
     float strength;
+    int tileIndex;
+    bool isPoint;
     int shadowMaskChannel;
+    float3 lightPositionWS;
+    //表面指向光源的方向
+    float3 lightDirectionWS;
+    float3 spotDirectionWS;
 };
 
 struct ShadowMask
@@ -104,7 +125,8 @@ ShadowData GetShadowData(Surface surfaceWS)
         }
     }
     //级联之外不渲染阴影
-    if (i==_CascadeCount)
+    //_CascadeCount为0时没有方向光也就没有级联，不考虑最外层的级联阴影强度衰减，使用上面的最远阴影距离渐隐
+    if (i==_CascadeCount && _CascadeCount > 0)
     {
         data.strength = 0.0;
     }
@@ -148,6 +170,34 @@ float FilterDirectionalShadow(float3 positionSTS)
         return shadow;
     #else
         return SampleDirectionalShadowAtlas(positionSTS);
+    #endif
+}
+
+//采样其他光阴影图集,会限制采样边界
+float SampleOtherShadowAtlas(float3 positionSTS,float3 bounds)
+{
+    positionSTS.xy = clamp(positionSTS.xy,bounds.xy,bounds.xy + bounds.z);
+    return SAMPLE_TEXTURE2D_SHADOW(
+        _OtherShadowAtlas,SHADOW_SAMPLER,positionSTS   
+    );
+}
+
+float FilterOtherShadow(float3 positionSTS, float3 bounds)
+{
+    #if defined(OTHER_FILTER_SETUP)
+        //PCF过滤
+        float weights[OTHER_FILTER_SAMPLES];
+        float2 positions[OTHER_FILTER_SAMPLES];
+        float4 size = _ShadowAtlasSize.wwzz;
+        OTHER_FILTER_SETUP(size,positionSTS.xy, weights, positions);
+        float shadow =0;
+        for (int i=0;i<OTHER_FILTER_SAMPLES;i++)
+        {
+            shadow += weights[i] * SampleOtherShadowAtlas(float3(positions[i].xy,positionSTS.z), bounds);
+        }
+        return shadow;
+    #else
+        return SampleOtherShadowAtlas(positionSTS,bounds);
     #endif
 }
 
@@ -200,6 +250,42 @@ float GetBakedShadow(ShadowMask mask, int channel, float strength)
         return lerp(1.0, GetBakedShadow(mask, channel), strength);
     }
     return 1.0;
+}
+
+//点光在6个面的光照方向
+static const float3 pointShadowPlanes[6] = {
+    float3(-1.0,0.0,0.0),
+    float3(1.0,0.0,0.0),
+    float3(0.0,-1.0,0.0),
+    float3(0.0,1.0,0.0),
+    float3(0.0,0.0,-1.0),
+    float3(0.0,0.0,1.0)
+};
+
+//获取其他光的实时阴影
+float GetOtherShadow(OtherShadowData other, ShadowData global, Surface surfaceWS)
+{
+    float tileIndex = other.tileIndex;
+    float3 lightPlane = other.spotDirectionWS;
+    if (other.isPoint)
+    {
+        //点光重新计算图块索引
+        float faceOffset = CubeMapFaceID(-other.lightDirectionWS);
+        tileIndex += faceOffset;
+        //确定光照平面，也就是相对于聚光的方向，
+        lightPlane = pointShadowPlanes[faceOffset];
+    }
+    float4 tileData = _OtherShadowTiles[tileIndex];
+    //根据距离放大纹素
+    float3 surfaceToLight = other.lightPositionWS - surfaceWS.position;
+    float distanceToLightPlane = dot(surfaceToLight, lightPlane);
+    float3 normalBias = surfaceWS.interpolatedNormal *(distanceToLightPlane * tileData.w);
+    float4 positionSTS = mul(
+        _OtherShadowMatrices[tileIndex],
+        float4(surfaceWS.position + normalBias,1.0)
+    );
+    //做透视除法
+    return FilterOtherShadow(positionSTS.xyz / positionSTS.w,tileData.xyz);
 }
 
 //混烘焙阴影和实时阴影
@@ -260,14 +346,16 @@ float GetOtherShadowAttenuation(OtherShadowData other, ShadowData global, Surfac
     #endif
     
     float shadow;
-    if (other.strength  > 0.0)
+    if (other.strength * global.strength  <= 0.0)
     {
         //现在仅返回烘焙阴影
-        shadow = GetBakedShadow(global.shadowMask, other.shadowMaskChannel, other.strength);
+        shadow = GetBakedShadow(global.shadowMask, other.shadowMaskChannel, abs(other.strength));
     }
     else
     {
-        shadow = 1.0;
+        //混合实时阴影和烘焙阴影
+        shadow = GetOtherShadow(other, global, surfaceWS);
+        shadow = MixBakedAndRealtimeShadows(global,shadow,other.shadowMaskChannel,other.strength);
     }
     return shadow;
     

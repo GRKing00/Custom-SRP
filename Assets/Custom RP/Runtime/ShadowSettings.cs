@@ -44,6 +44,14 @@ public class ShadowSettings
         //级联混合模式
         public CascadeBlendMode cascadeBlend;
     }
+
+    [System.Serializable]
+    public struct Other
+    {
+        public MapSize atlasSize;
+        public FilterMode filter;
+    }
+    
     
     [Min(0.001f)]
     public float maxDistance = 100.0f;
@@ -63,6 +71,11 @@ public class ShadowSettings
         cascadeFade = 0.1f,
         cascadeBlend = Directional.CascadeBlendMode.Hard
     };
-
+    
+    public Other other = new Other()
+    {
+        atlasSize = MapSize._1024,
+        filter = FilterMode.PCF2x2,
+    };
 
 }

@@ -82,7 +82,7 @@ public class Lighting
                 case LightType.Directional:
                     if (dirLightCount < maxDirLightCount)
                     {
-                        SetupDirectionalLight(dirLightCount++, ref visibleLight);
+                        SetupDirectionalLight(dirLightCount++,i, ref visibleLight);
                     }
                     break;
                 case LightType.Point:
@@ -90,7 +90,7 @@ public class Lighting
                     {
                         //记录索引
                         newIndex = otherLightCount;
-                        SetupPointLight(otherLightCount++, ref visibleLight);
+                        SetupPointLight(otherLightCount++, i,ref visibleLight);
                     }
                     break;
                 case LightType.Spot:
@@ -98,7 +98,7 @@ public class Lighting
                     {
                         //记录索引
                         newIndex = otherLightCount;
-                        SetupSpotLight(otherLightCount++, ref visibleLight);
+                        SetupSpotLight(otherLightCount++, i,ref visibleLight);
                     }
                     break;
             }
@@ -146,14 +146,14 @@ public class Lighting
     }
 
     //设置方向光数据,这里会预存方向光阴影
-    void SetupDirectionalLight(int index, ref VisibleLight visibleLight)
+    void SetupDirectionalLight(int index,int visibleIndex, ref VisibleLight visibleLight)
     {
         dirLightColors[index] = visibleLight.finalColor;
         dirLightDirections[index] = -visibleLight.localToWorldMatrix.GetColumn(2);
-        dirLightShadowData[index] = shadows.ReserveDirectionalShadows(visibleLight.light, index);//预定方向光阴影
+        dirLightShadowData[index] = shadows.ReserveDirectionalShadows(visibleLight.light, visibleIndex);//预定方向光阴影
     }
 
-    void SetupPointLight(int index, ref VisibleLight visibleLight)
+    void SetupPointLight(int index,int visibleIndex, ref VisibleLight visibleLight)
     {
         otherLightColors[index] = visibleLight.finalColor;
         //w分量记录1/点光范围的平方，用于求点光的衰减
@@ -163,10 +163,10 @@ public class Lighting
         //点光没有聚光的在内外角之间的衰减
         otherLightSpotAngles[index] = new Vector4(0f, 1f);
         Light light = visibleLight.light;
-        otherLightShadowData[index] = shadows.ReserveOtherShadows(light, index);
+        otherLightShadowData[index] = shadows.ReserveOtherShadows(light, visibleIndex);
     }
 
-    void SetupSpotLight(int index, ref VisibleLight visibleLight)
+    void SetupSpotLight(int index,int visibleIndex, ref VisibleLight visibleLight)
     {
         otherLightColors[index] = visibleLight.finalColor;
         Vector4 position = visibleLight.localToWorldMatrix.GetColumn(3);
@@ -179,7 +179,7 @@ public class Lighting
         float outerCos = Mathf.Cos(Mathf.Deg2Rad * 0.5f * visibleLight.spotAngle);
         float angleRangeInv = 1f / Mathf.Max(innerCos - outerCos, 0.001f);
         otherLightSpotAngles[index] = new Vector4(angleRangeInv, -outerCos * angleRangeInv);
-        otherLightShadowData[index] = shadows.ReserveOtherShadows(visibleLight.light, index);
+        otherLightShadowData[index] = shadows.ReserveOtherShadows(visibleLight.light, visibleIndex);
     }
     
     public void Cleanup()
